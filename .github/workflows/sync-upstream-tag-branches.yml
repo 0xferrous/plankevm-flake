@@ -6,40 +6,30 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  actions: write
+  contents: read
 
 jobs:
-  sync:
-    name: Create/update branches for upstream tags
+  dispatch:
+    name: Dispatch one workflow per upstream tag
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
 
-      - uses: cachix/install-nix-action@v31
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Create/update one branch per upstream tag
+      - name: Dispatch tag sync workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
           upstream="plankevm/plank-monorepo"
-          branch_prefix="tag"
+          workflow="sync-one-upstream-tag.yml"
           summary_file="$(mktemp)"
 
           {
-            echo "# Upstream tag branch sync"
+            echo "# Upstream tag sync dispatch"
             echo
-            echo "| Tag | Branch | Result |"
+            echo "| Tag | Workflow | Result |"
             echo "| --- | --- | --- |"
           } >> "$summary_file"
 
@@ -47,35 +37,11 @@ jobs:
             | awk '{print $2}' \
             | sed 's#refs/tags/##' \
             | while IFS= read -r tag; do
-              branch="${branch_prefix}/${tag}"
-              echo "Syncing ${branch} -> ${upstream}:${tag}"
+              echo "::group::Dispatch ${workflow} for ${tag}"
+              gh workflow run "${workflow}" --ref main -f tag="${tag}"
+              echo "::endgroup::"
 
-              if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
-                git fetch origin "${branch}:${branch}"
-                git checkout "${branch}"
-              else
-                git checkout -B "${branch}" origin/main
-              fi
-
-              nix flake lock \
-                --override-input plank-monorepo "github:${upstream}/${tag}" \
-                --print-build-logs
-
-              nix flake check --print-build-logs
-              nix build .#plank --no-link --print-build-logs
-              nix build .#tree-sitter-plank --no-link --print-build-logs
-
-              if git diff --quiet flake.lock; then
-                echo "${branch} is already up to date"
-                result="up to date"
-              else
-                git add flake.lock
-                git commit -m "chore: lock plank-monorepo to ${tag}"
-                result="updated"
-              fi
-
-              git push origin "${branch}:${branch}"
-              echo "| ${tag} | ${branch} | ${result} |" >> "$summary_file"
+              echo "| ${tag} | ${workflow} | dispatched |" >> "$summary_file"
             done
 
           cat "$summary_file" >> "$GITHUB_STEP_SUMMARY"

@@ -23,9 +23,17 @@ jobs:
             experimental-features = nix-command flakes
 
       - name: Check flake outputs
-        run: nix flake check --print-build-logs
+        run: |
+          echo "::group::nix flake check"
+          nix flake check --print-build-logs
+          echo "::endgroup::"
 
       - name: Build package outputs
         run: |
+          echo "::group::Build plank"
           nix build .#plank --no-link --print-build-logs
+          echo "::endgroup::"
+
+          echo "::group::Build tree-sitter-plank"
           nix build .#tree-sitter-plank --no-link --print-build-logs
+          echo "::endgroup::"

@@ -23,13 +23,24 @@ jobs:
             experimental-features = nix-command flakes
 
       - name: Update plank-monorepo flake input
-        run: nix flake update plank-monorepo --print-build-logs
+        run: |
+          echo "::group::Update plank-monorepo flake input"
+          nix flake update plank-monorepo --print-build-logs
+          echo "::endgroup::"
 
       - name: Verify updated flake
         run: |
+          echo "::group::nix flake check"
           nix flake check --print-build-logs
+          echo "::endgroup::"
+
+          echo "::group::Build plank"
           nix build .#plank --no-link --print-build-logs
+          echo "::endgroup::"
+
+          echo "::group::Build tree-sitter-plank"
           nix build .#tree-sitter-plank --no-link --print-build-logs
+          echo "::endgroup::"
 
       - name: Commit and push changes
         run: |

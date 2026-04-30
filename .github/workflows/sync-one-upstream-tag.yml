@@ -1,0 +1,91 @@
+name: Sync one upstream tag branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Upstream plank-monorepo tag to sync
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync tag/${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync upstream tag branch
+        run: |
+          set -euo pipefail
+
+          upstream="plankevm/plank-monorepo"
+          tag="${{ inputs.tag }}"
+          branch="tag/${tag}"
+
+          {
+            echo "# Upstream tag branch sync"
+            echo
+            echo "| Tag | Branch | Result |"
+            echo "| --- | --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Syncing ${branch} -> ${upstream}:${tag}"
+
+          if ! git ls-remote --exit-code --tags --refs "https://github.com/${upstream}.git" "${tag}" >/dev/null 2>&1; then
+            echo "Upstream tag does not exist: ${tag}" >&2
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
+            git fetch origin "${branch}:${branch}"
+            git checkout "${branch}"
+          else
+            git checkout -B "${branch}" origin/main
+          fi
+
+          echo "::group::${branch}: update flake lock"
+          nix flake lock \
+            --override-input plank-monorepo "github:${upstream}/${tag}" \
+            --print-build-logs
+          echo "::endgroup::"
+
+          echo "::group::${branch}: nix flake check"
+          nix flake check --print-build-logs
+          echo "::endgroup::"
+
+          echo "::group::${branch}: build plank"
+          nix build .#plank --no-link --print-build-logs
+          echo "::endgroup::"
+
+          echo "::group::${branch}: build tree-sitter-plank"
+          nix build .#tree-sitter-plank --no-link --print-build-logs
+          echo "::endgroup::"
+
+          if git diff --quiet flake.lock; then
+            echo "${branch} is already up to date"
+            result="up to date"
+          else
+            git add flake.lock
+            git commit -m "chore: lock plank-monorepo to ${tag}"
+            result="updated"
+          fi
+
+          git push origin "${branch}:${branch}"
+          echo "| ${tag} | ${branch} | ${result} |" >> "$GITHUB_STEP_SUMMARY"
