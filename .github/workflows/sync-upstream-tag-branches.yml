@@ -24,6 +24,10 @@ jobs:
 
           upstream="plankevm/plank-monorepo"
           workflow="sync-one-upstream-tag.yml"
+          skip_tags=(
+            "v0.0.1-alpha.1"
+            "v0.0.1-alpha.2"
+          )
           summary_file="$(mktemp)"
 
           {
@@ -37,6 +41,22 @@ jobs:
             | awk '{print $2}' \
             | sed 's#refs/tags/##' \
             | while IFS= read -r tag; do
+              branch="tag/${tag}"
+
+              for skip_tag in "${skip_tags[@]}"; do
+                if [ "${tag}" = "${skip_tag}" ]; then
+                  echo "Skipping ${tag}; tag is in skip list"
+                  echo "| ${tag} | ${workflow} | skipped: skip list |" >> "$summary_file"
+                  continue 2
+                fi
+              done
+
+              if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
+                echo "Skipping ${tag}; ${branch} already exists"
+                echo "| ${tag} | ${workflow} | skipped: branch exists |" >> "$summary_file"
+                continue
+              fi
+
               echo "::group::Dispatch ${workflow} for ${tag}"
               gh workflow run "${workflow}" --ref main -f tag="${tag}"
               echo "::endgroup::"
