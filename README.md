@@ -24,11 +24,6 @@ Build the tree-sitter grammar package:
 nix build github:0xferrous/plankevm-flake#tree-sitter-plank
 ```
 
-Enter the development shell:
-
-```bash
-nix develop github:0xferrous/plankevm-flake
-```
 
 ## Outputs
 
@@ -37,7 +32,6 @@ nix develop github:0xferrous/plankevm-flake
 - `packages.<system>.default`: Alias for `plank`
 - `apps.<system>.plank`: App wrapper for the Plank CLI
 - `apps.<system>.default`: Alias for `plank`
-- `devShells.<system>.default`: Rust/mdBook development shell
 
 The `plank` package includes the compiler, standard library, and local docs. The wrapped binary sets `PLANK_DIR` to the package output so `plank build` can find `stdlib/` and `plank doc` can find `share/doc/`.
 

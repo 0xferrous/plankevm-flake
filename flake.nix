@@ -81,8 +81,5 @@
 
         apps.default = self.apps.${system}.plank;
 
-        devShells.default = pkgs.mkShell {
-          packages = with pkgs; [ rustc cargo rustfmt clippy mdbook ];
-        };
       });
 }
