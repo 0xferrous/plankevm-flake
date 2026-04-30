@@ -18,7 +18,7 @@
         plankDocs = pkgs.stdenvNoCC.mkDerivation {
           pname = "plank-docs";
           version = "0.1.0";
-          src = "${plank-monorepo}/plank-doc";
+          src = plank-monorepo + "/plank-doc";
           nativeBuildInputs = [ pkgs.mdbook ];
           buildPhase = ''
             mdbook build
@@ -34,9 +34,9 @@
         packages.plank = rustPlatform.buildRustPackage {
           pname = "plank";
           version = "0.1.0";
-          src = "${plank-monorepo}/plankc";
+          src = plank-monorepo + "/plankc";
           cargoLock = {
-            lockFile = "${plank-monorepo}/plankc/Cargo.lock";
+            lockFile = plank-monorepo + "/plankc/Cargo.lock";
           };
           cargoBuildFlags = [ "-p" "plank" ];
           postPatch = ''
@@ -61,7 +61,7 @@
         packages.tree-sitter-plank = pkgs.tree-sitter.buildGrammar {
           language = "plank";
           version = "0.1.0";
-          src = "${plank-monorepo}/plank-tree-sitter";
+          src = plank-monorepo + "/plank-tree-sitter";
           meta = with pkgs.lib; {
             description = "Plank grammar for tree-sitter";
             homepage = "https://github.com/plankevm/plank-monorepo";
