@@ -1,0 +1,45 @@
+name: Update flake lock
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Update plank-monorepo input
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Update plank-monorepo flake input
+        run: nix flake update plank-monorepo --print-build-logs
+
+      - name: Verify updated flake
+        run: |
+          nix flake check --print-build-logs
+          nix build .#plank --no-link --print-build-logs
+          nix build .#tree-sitter-plank --no-link --print-build-logs
+
+      - name: Commit and push changes
+        run: |
+          if git diff --quiet flake.lock; then
+            echo "flake.lock is already up to date"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flake.lock
+          git commit -m "chore: update plank-monorepo flake input"
+          git push origin HEAD:main
