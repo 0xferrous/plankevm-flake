@@ -10,8 +10,31 @@ let max_rounds = 20
 def run-python [lines: list<string>, args: list<string>] {
   let script = (^mktemp | str trim)
   $lines | str join (char nl) | save --raw --force $script
-  ^python3 $script ...$args
+  let result = (^python3 $script ...$args)
   rm $script
+  $result
+}
+
+
+def extract-regex-group [text: string, pattern: string, group: string] {
+  let input = (^mktemp | str trim)
+  $text | save --raw --force $input
+  let code = [
+    "import pathlib, re, sys"
+    "path, pattern, group = sys.argv[1:4]"
+    "text = pathlib.Path(path).read_text()"
+    "text = re.sub(r'\\x1b\\[[0-9;]*m', '', text)"
+    "idx = int(group)"
+    "match = None"
+    "for line in text.splitlines():"
+    "    match = re.search(pattern, line.strip())"
+    "    if match:"
+    "        break"
+    "print(match.group(idx) if match else '')"
+  ]
+  let result = (run-python $code [$input $pattern $group] | str trim)
+  rm $input
+  $result
 }
 
 
@@ -23,6 +46,7 @@ def upsert-hash [file: string, dep: string, hash: string] {
     "lines = path.read_text().splitlines()"
     "out = []"
     "in_block = False"
+    "has_block = any(line.strip() == 'outputHashes = {' for line in lines)"
     "replaced = False"
     "entry = f'              \"{dep}\" = \"{hash}\";'"
     "needle = f'\"{dep}\" ='"
@@ -41,6 +65,12 @@ def upsert-hash [file: string, dep: string, hash: string] {
     "    if in_block and trimmed.startswith(needle):"
     "        out.append(entry)"
     "        replaced = True"
+    "        continue"
+    "    if (not has_block) and trimmed == 'lockFile = plank-monorepo + \"/plankc/Cargo.lock\";':"
+    "        out.append(line)"
+    "        out.append('            outputHashes = {')"
+    "        out.append(entry)"
+    "        out.append('            };')"
     "        continue"
     "    out.append(line)"
     "path.write_text('\\n'.join(out) + '\\n')"
@@ -100,30 +130,26 @@ loop {
   print ("cargo hash fixer: round " + ($round | into string) + " failed")
   print $output
 
-  let missing = ($output | parse -r 'No hash was found while vendoring the git dependency (?<dep>.+?)\.' )
-  if not ($missing | is-empty) {
-    let dep = ($missing | get dep | first)
-    print ("cargo hash fixer: add fake hash for missing git dep " + $dep)
-    upsert-hash $flake_file $dep $fake_hash
+  let missing_dep = (extract-regex-group $output 'error: No hash was found while vendoring the git dependency (.+)\.' '1')
+  if $missing_dep != "" {
+    print ("cargo hash fixer: add fake hash for missing git dep " + $missing_dep)
+    upsert-hash $flake_file $missing_dep $fake_hash
     continue
   }
 
-  let stale = ($output | parse -r 'A hash was specified for (?<dep>[^,]+), but there is no corresponding git dependency\.')
-  if not ($stale | is-empty) {
-    let dep = ($stale | get dep | first)
-    print ("cargo hash fixer: remove stale hash for " + $dep)
-    remove-hash $flake_file $dep
+  let stale_dep = (extract-regex-group $output 'error: A hash was specified for ([^,]+), but there is no corresponding git dependency\.' '1')
+  if $stale_dep != "" {
+    print ("cargo hash fixer: remove stale hash for " + $stale_dep)
+    remove-hash $flake_file $stale_dep
     continue
   }
 
-  let mismatch = ($output | parse -r "Cannot build '/nix/store/[0-9a-z]{32}-(?<dep>.+)\\.drv'")
-  let got_hash = ($output | parse -r 'got:\s+(?<hash>sha256-[A-Za-z0-9+/=]+)')
+  let mismatch_dep = (extract-regex-group $output "Cannot build '/nix/store/[0-9a-z]{32}-(.+)\\.drv'" '1')
+  let got_hash = (extract-regex-group $output 'got:\s+(sha256-[A-Za-z0-9+/=]+)' '1')
 
-  if (not ($mismatch | is-empty)) and (not ($got_hash | is-empty)) {
-    let dep = ($mismatch | get dep | first)
-    let hash = ($got_hash | get hash | first)
-    print ("cargo hash fixer: update " + $dep + " -> " + $hash)
-    upsert-hash $flake_file $dep $hash
+  if $mismatch_dep != "" and $got_hash != "" {
+    print ("cargo hash fixer: update " + $mismatch_dep + " -> " + $got_hash)
+    upsert-hash $flake_file $mismatch_dep $got_hash
     continue
   }
 
