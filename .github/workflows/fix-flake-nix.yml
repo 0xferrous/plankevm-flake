@@ -1,0 +1,52 @@
+name: Fix flake.nix cargo output hashes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    name: Fix flake.nix cargo output hashes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Fix cargo output hashes
+        run: |
+          nix shell nixpkgs#nushell -c nu .github/scripts/update-cargo-output-hashes.nu
+
+      - name: Verify updated flake
+        run: |
+          echo "::group::nix flake check"
+          nix flake check --print-build-logs
+          echo "::endgroup::"
+
+          echo "::group::Build plank"
+          nix build .#plank --no-link --print-build-logs
+          echo "::endgroup::"
+
+          echo "::group::Build tree-sitter-plank"
+          nix build .#tree-sitter-plank --no-link --print-build-logs
+          echo "::endgroup::"
+
+      - name: Commit and push changes
+        run: |
+          if git diff --quiet flake.nix; then
+            echo "flake.nix is already up to date"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flake.nix
+          git commit -m "chore: fix cargo output hashes"
+          git push origin HEAD:main

@@ -56,6 +56,8 @@ The `Update flake lock` workflow runs daily at 06:00 UTC and can also be run man
 3. verifies the updated flake with `nix flake check`, `nix build .#plank`, and `nix build .#tree-sitter-plank`
 4. commits and pushes the updated `flake.lock` to `main` only if verification succeeds
 
+If upstream changes add or remove Cargo git deps, run the manual `Fix flake.nix cargo output hashes` workflow to update `flake.nix`.
+
 ### `tag/<upstream-tag>` branches track upstream release tags
 
 Each upstream `plankevm/plank-monorepo` tag gets a matching branch in this repo:
