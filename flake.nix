@@ -37,6 +37,10 @@
           src = plank-monorepo + "/plankc";
           cargoLock = {
             lockFile = plank-monorepo + "/plankc/Cargo.lock";
+            outputHashes = {
+              "dot2-1.0.0" = "sha256-L/hmLHVCfyGkPVIt+sKMR5ECWH4JJuI2v00SYJ/Mv10=";
+              "sonatina-codegen-0.0.3-alpha" = "sha256-Q19jqOg0tfMj0MIG20lg/kVGQEdylK5IvjpvqrS1dd4=";
+            };
           };
           cargoBuildFlags = [ "-p" "plank" ];
           postPatch = ''
