@@ -9,6 +9,7 @@ on:
     paths:
       - flake.nix
       - flake.lock
+  workflow_dispatch:
 
 env:
   CACHIX_NAME: ${{ vars.CACHIX_NAME }}
