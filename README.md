@@ -28,6 +28,19 @@ nix build github:0xferrous/plankevm-flake#tree-sitter-plank
 
 GitHub Actions can push build outputs to Cachix when `CACHIX_NAME` is set as a repository variable and `CACHIX_AUTH_TOKEN` is set as a secret.
 
+To use the cache locally, either run:
+
+```bash
+cachix use 0xferrous
+```
+
+or add it to `nix.conf`:
+
+```ini
+substituters = https://cache.nixos.org https://0xferrous.cachix.org
+trusted-public-keys = 0xferrous.cachix.org-1:p38oLu+8I+EwBW6NCl+ffI8qn+WOtUeRzES/dYNuSUE=
+```
+
 ## Outputs
 
 - `packages.<system>.plank`: Plank compiler CLI
