@@ -10,6 +10,10 @@ on:
       - flake.nix
       - flake.lock
 
+env:
+  CACHIX_NAME: ${{ vars.CACHIX_NAME }}
+  CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
 jobs:
   flake:
     name: Build
@@ -21,6 +25,12 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
+
+      - uses: cachix/cachix-action@v16
+        if: github.event_name == 'push' && env.CACHIX_NAME != '' && env.CACHIX_AUTH_TOKEN != ''
+        with:
+          name: ${{ env.CACHIX_NAME }}
+          authToken: ${{ env.CACHIX_AUTH_TOKEN }}
 
       - name: Check flake outputs
         run: |

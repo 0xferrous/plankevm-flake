@@ -24,6 +24,9 @@ Build the tree-sitter grammar package:
 nix build github:0xferrous/plankevm-flake#tree-sitter-plank
 ```
 
+## Cachix
+
+GitHub Actions can push build outputs to Cachix when `CACHIX_NAME` is set as a repository variable and `CACHIX_AUTH_TOKEN` is set as a secret.
 
 ## Outputs
 
