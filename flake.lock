@@ -37,11 +37,11 @@
     "plank-monorepo": {
       "flake": false,
       "locked": {
-        "lastModified": 1781519798,
-        "narHash": "sha256-QttyFRC9X+S4ydBujYm0a1fyqOkeVXvAjil2N3OzMME=",
+        "lastModified": 1781691764,
+        "narHash": "sha256-aMVCMdfrXyyCU45/lAaVZd187KMdH7/NEl6HKqUn+6U=",
         "owner": "plankevm",
         "repo": "plank-monorepo",
-        "rev": "30f3bdcd405057ef7394dd9bf703f5923b03134a",
+        "rev": "b51e57d7541c12003c169004b27e8e3bd859ae74",
         "type": "github"
       },
       "original": {
